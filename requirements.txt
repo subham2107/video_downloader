@@ -1,0 +1,14 @@
+# Web framework + ASGI server
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+
+# Extraction. The [default] extra pulls in yt-dlp-ejs (YouTube JS challenge solver)
+# and other recommended helpers. Keep yt-dlp recent: YouTube changes often.
+yt-dlp[default]>=2026.7.4
+
+# FFmpeg provisioning without Docker or apt: ships a static ffmpeg binary
+# inside the wheel for Linux x86_64 (Render), macOS and Windows.
+imageio-ffmpeg>=0.6,<0.7
+
+# JavaScript runtime that yt-dlp needs for YouTube, also shipped as a binary wheel.
+deno>=2.4,<3

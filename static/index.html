@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Downloader</title>
+<meta name="description" content="Convert a YouTube video you have the rights to into an MP3 file.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c62828'/%3E%3Cpath d='M9 13v6M13 9v14M17 12v8M21 10v12M25 14v4' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f6f7;
+    --surface: #ffffff;
+    --text: #1d1d22;
+    --muted: #5d5f6a;
+    --border: #dfe0e5;
+    --accent: #c62828;
+    --accent-hover: #a91f1f;
+    --accent-soft: #fdeceb;
+    --success: #1f7a4d;
+    --success-soft: #e8f5ee;
+    --danger: #b3261e;
+    --danger-soft: #fdecea;
+    --focus: #1a5fd0;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 8px 28px rgba(20, 20, 30, .07);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: clamp(28px, 7vh, 72px) 16px 32px;
+  }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .logo {
+    flex: none; width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center; background: var(--accent); color: #fff;
+    box-shadow: 0 4px 14px rgba(198, 40, 40, .25);
+  }
+  h1 { font-size: clamp(1.5rem, 4vw, 1.9rem); line-height: 1.2; margin: 0; letter-spacing: -.01em; }
+  .lead { color: var(--muted); margin: 6px 0 28px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: clamp(18px, 4vw, 28px);
+  }
+  label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 8px; }
+  .input-row {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 11px; background: #fff;
+    padding: 5px 5px 5px 14px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .input-row:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(26, 95, 208, .18); }
+  .input-row.invalid { border-color: var(--danger); }
+  .input-row.invalid:focus-within { box-shadow: 0 0 0 3px rgba(179, 38, 30, .16); }
+  input[type="text"] {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font: inherit; color: inherit; padding: 8px 0;
+  }
+  input::placeholder { color: #8b8d97; }
+  .hint { min-height: 1.4em; margin: 8px 2px 0; font-size: .875rem; color: var(--muted); }
+  .hint.error { color: var(--danger); }
+
+  button, .button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    border-radius: 9px; border: 1px solid transparent;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    text-decoration: none; transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  button:focus-visible, .button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .input-row input:focus-visible { outline: none; }
+  .ghost {
+    background: transparent; color: var(--muted); padding: 7px 11px; font-size: .9rem; border-color: transparent;
+  }
+  .ghost:hover:not(:disabled) { background: #f1f1f4; color: var(--text); }
+  .primary {
+    width: 100%; margin-top: 14px; padding: 13px 18px; font-size: 1.02rem;
+    background: var(--accent); color: #fff;
+  }
+  .primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .secondary {
+    background: #fff; color: var(--text); border-color: var(--border); padding: 10px 16px;
+  }
+  .secondary:hover:not(:disabled) { background: #f5f5f7; }
+  .success-btn { background: var(--success); color: #fff; padding: 11px 18px; }
+  .success-btn:hover { background: #18633e; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+
+  .panel { margin-top: 20px; border-radius: 12px; padding: 16px 18px; }
+  .panel[hidden] { display: none; }
+  .panel.status { background: #f7f7f9; border: 1px solid var(--border); }
+  .panel.done { background: var(--success-soft); border: 1px solid #bfe3cf; }
+  .panel.fail { background: var(--danger-soft); border: 1px solid #f3c4c0; }
+  .status-line { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .status-sub { color: var(--muted); font-size: .9rem; margin: 4px 0 0; overflow-wrap: anywhere; }
+  .spinner {
+    flex: none; width: 18px; height: 18px; border-radius: 50%;
+    border: 2.5px solid #e3c9c9; border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  .bar { position: relative; height: 6px; margin-top: 14px; border-radius: 99px; background: #e7e7ec; overflow: hidden; }
+  .bar > span { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); border-radius: inherit; transition: width .3s ease; }
+  .bar.indeterminate > span { width: 35%; animation: slide 1.3s ease-in-out infinite; }
+  .result-name { font-weight: 600; overflow-wrap: anywhere; margin: 2px 0; }
+  .result-meta { color: var(--muted); font-size: .9rem; margin: 0 0 14px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fail-title { font-weight: 600; color: var(--danger); margin: 0 0 4px; }
+  .fail p { margin: 0; }
+  .fail .actions { margin-top: 12px; }
+  .icon-ok { color: var(--success); flex: none; }
+
+  footer {
+    text-align: center; color: var(--muted); font-size: .82rem;
+    padding: 16px 16px max(20px, env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto;
+  }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes slide { 0% { left: -35%; } 100% { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner, .bar.indeterminate > span { animation-duration: 3s; }
+  }
+  @media (max-width: 420px) {
+    .input-row { flex-wrap: wrap; padding: 6px; }
+    .input-row input { flex-basis: 100%; padding: 8px; }
+    .input-row .ghost { flex: 1; background: #f4f4f6; }
+    .actions > * { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M4 10v4M8 6v12M12 9v6M16 5v14M20 10v4"/>
+      </svg>
+    </div>
+    <h1>Audio Downloader</h1>
+  </header>
+  <p class="lead">Paste a YouTube link to save its audio as an MP3 file.</p>
+
+  <section class="card" aria-labelledby="url-label">
+    <form id="form" novalidate>
+      <label id="url-label" for="url">YouTube link</label>
+      <div class="input-row" id="input-row">
+        <input id="url" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off"
+               spellcheck="false" maxlength="2048" placeholder="https://www.youtube.com/watch?v=…"
+               aria-describedby="hint">
+        <button type="button" class="ghost" id="paste">Paste</button>
+        <button type="button" class="ghost" id="clear">Clear</button>
+      </div>
+      <p class="hint" id="hint" aria-live="polite">Supports youtube.com/watch, youtu.be, Shorts and embed links.</p>
+      <button type="submit" class="primary" id="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>
+        </svg>
+        <span id="submit-label">Download MP3</span>
+      </button>
+    </form>
+
+    <div class="panel status" id="status-panel" hidden aria-live="polite">
+      <div class="status-line"><span class="spinner" aria-hidden="true"></span><span id="status-text">Starting…</span></div>
+      <p class="status-sub" id="status-sub" hidden></p>
+      <div class="bar indeterminate" id="bar" role="progressbar" aria-label="Processing progress"><span></span></div>
+    </div>
+
+    <div class="panel done" id="done-panel" hidden>
+      <div class="status-line">
+        <svg class="icon-ok" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        <span id="done-title" tabindex="-1">Your MP3 is ready</span>
+      </div>
+      <p class="result-name" id="result-name"></p>
+      <p class="result-meta" id="result-meta"></p>
+      <div class="actions">
+        <a class="button success-btn" id="file-link" href="#" download>Download File</a>
+        <button type="button" class="secondary" id="again">Convert another</button>
+      </div>
+    </div>
+
+    <div class="panel fail" id="fail-panel" hidden role="alert">
+      <p class="fail-title">Couldn't create the MP3</p>
+      <p id="fail-text"></p>
+      <div class="actions"><button type="button" class="secondary" id="retry">Try again</button></div>
+    </div>
+  </section>
+</main>
+<footer>
+  Only download content you own or have permission to download. This tool does not bypass
+  DRM, paywalls, sign-in or other access restrictions.
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const form = $("form"), input = $("url"), inputRow = $("input-row"), hint = $("hint");
+  const submitBtn = $("submit"), submitLabel = $("submit-label");
+  const pasteBtn = $("paste"), clearBtn = $("clear");
+  const statusPanel = $("status-panel"), statusText = $("status-text"), statusSub = $("status-sub"), bar = $("bar");
+  const donePanel = $("done-panel"), resultName = $("result-name"), resultMeta = $("result-meta"), fileLink = $("file-link");
+  const failPanel = $("fail-panel"), failText = $("fail-text");
+
+  const DEFAULT_HINT = hint.textContent;
+  const POLL_MS = 1500;
+  const MAX_POLL_FAILURES = 6;
+  const MAX_WAIT_MS = 20 * 60 * 1000;
+
+  const STAGES = {
+    queued: "Waiting for a free slot…",
+    fetching_info: "Fetching video details…",
+    downloading: "Downloading audio…",
+    converting: "Converting to MP3…",
+  };
+
+  let busy = false;          // a submit or job is in flight
+  let jobId = null;
+  let pollTimer = null;
+  let pollFailures = 0;
+  let pollStarted = 0;
+  let generation = 0;        // invalidates stale poll responses after reset
+
+  // ---------- validation (mirrors validation.py) ----------
+  const ID_RE = /^[A-Za-z0-9_-]{11}$/;
+  const LONG_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com",
+                              "youtube-nocookie.com", "www.youtube-nocookie.com"]);
+  const SHORT_HOSTS = new Set(["youtu.be", "www.youtu.be"]);
+  const ID_PREFIXES = new Set(["shorts", "embed", "live", "v"]);
+
+  function validate(raw) {
+    let value = (raw || "").trim();
+    if (!value) return { ok: false, msg: "Please enter a YouTube link." };
+    if (value.length > 2048 || /[\s\\]/.test(value)) return { ok: false, msg: "The link contains invalid characters." };
+    if (!value.includes("://")) value = "https://" + value;
+    let u;
+    try { u = new URL(value); } catch { return { ok: false, msg: "That doesn't look like a valid link." }; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return { ok: false, msg: "Only http and https links are supported." };
+    if (u.username || u.password || u.port) return { ok: false, msg: "That isn't a valid YouTube link." };
+    const host = u.hostname.toLowerCase().replace(/\.$/, "");
+    const parts = u.pathname.split("/").filter(Boolean);
+    let id = null;
+    if (SHORT_HOSTS.has(host)) {
+      if (parts.length === 1) id = parts[0];
+    } else if (LONG_HOSTS.has(host)) {
+      if (parts.length === 1 && parts[0] === "watch") {
+        const vs = u.searchParams.getAll("v");
+        if (vs.length === 1) id = vs[0];
+      } else if (parts.length === 2 && ID_PREFIXES.has(parts[0])) {
+        id = parts[1];
+      } else {
+        return { ok: false, msg: "Use a link to a single video (watch, youtu.be, Shorts or embed)." };
+      }
+    } else {
+      return { ok: false, msg: "Only YouTube links (youtube.com or youtu.be) are supported." };
+    }
+    if (!id || !ID_RE.test(id)) return { ok: false, msg: "The link doesn't contain a valid video ID." };
+    return { ok: true, value: value };
+  }
+
+  // ---------- UI helpers ----------
+  function setHint(msg, isError) {
+    hint.textContent = msg || DEFAULT_HINT;
+    hint.classList.toggle("error", !!isError);
+    inputRow.classList.toggle("invalid", !!isError);
+    input.setAttribute("aria-invalid", isError ? "true" : "false");
+  }
+
+  function show(panel) {
+    for (const p of [statusPanel, donePanel, failPanel]) p.hidden = p !== panel;
+  }
+
+  function setBusy(on) {
+    busy = on;
+    submitBtn.disabled = on;
+    submitBtn.setAttribute("aria-busy", on ? "true" : "false");
+    submitLabel.textContent = on ? "Working…" : "Download MP3";
+  }
+
+  function setProgress(pct) {
+    const span = bar.firstElementChild;
+    if (typeof pct === "number" && isFinite(pct)) {
+      bar.classList.remove("indeterminate");
+      span.style.width = Math.max(0, Math.min(100, pct)) + "%";
+      bar.setAttribute("aria-valuemin", "0");
+      bar.setAttribute("aria-valuemax", "100");
+      bar.setAttribute("aria-valuenow", String(Math.round(pct)));
+    } else {
+      bar.classList.add("indeterminate");
+      span.style.width = "";
+      bar.removeAttribute("aria-valuenow");
+    }
+  }
+
+  function formatBytes(n) {
+    if (typeof n !== "number" || !isFinite(n) || n <= 0) return null;
+    const units = ["B", "KB", "MB", "GB"];
+    let i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return n.toFixed(i === 0 ? 0 : 1) + " " + units[i];
+  }
+
+  function showStatus(text, sub, pct) {
+    show(statusPanel);
+    statusText.textContent = text;
+    statusSub.hidden = !sub;
+    statusSub.textContent = sub || "";
+    setProgress(pct);
+  }
+
+  function showError(msg) {
+    stopPolling();
+    setBusy(false);
+    show(failPanel);
+    failText.textContent = msg || "Something went wrong. Please try again.";
+  }
+
+  function stopPolling() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+
+  function resetUI({ keepUrl }) {
+    generation++;
+    stopPolling();
+    jobId = null;
+    setBusy(false);
+    show(null);
+    setHint(null, false);
+    if (!keepUrl) input.value = "";
+  }
+
+  // ---------- networking ----------
+  async function api(method, path, body) {
+    let res;
+    try {
+      res = await fetch(path, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
+        cache: "no-store",
+      });
+    } catch {
+      const err = new Error("network");
+      err.network = true;
+      throw err;
+    }
+    let data = null;
+    try { data = await res.json(); } catch { /* non-JSON response */ }
+    if (!res.ok) {
+      const err = new Error((data && data.error && data.error.message) || "The server returned an unexpected response.");
+      err.status = res.status;
+      err.code = data && data.error && data.error.code;
+      throw err;
+    }
+    if (!data || typeof data !== "object") throw new Error("The server returned an unexpected response.");
+    return data;
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;                       // duplicate-request guard
+    const check = validate(input.value);
+    if (!check.ok) { setHint(check.msg, true); input.focus(); return; }
+    setHint(null, false);
+    setBusy(true);
+    const gen = ++generation;
+    showStatus("Submitting…", null, null);
+    try {
+      const data = await api("POST", "/api/download", { url: input.value.trim() });
+      if (gen !== generation) return;
+      if (typeof data.job_id !== "string") throw new Error("The server returned an unexpected response.");
+      jobId = data.job_id;
+      pollFailures = 0;
+      pollStarted = Date.now();
+      showStatus(STAGES.queued, null, null);
+      schedulePoll(gen, 400);
+    } catch (err) {
+      if (gen !== generation) return;
+      if (err.network) showError("Couldn't reach the server. Check your connection and try again.");
+      else if (err.code === "invalid_url") { setBusy(false); show(null); setHint(err.message, true); input.focus(); }
+      else showError(err.message);
+    }
+  }
+
+  function schedulePoll(gen, delay) {
+    stopPolling();
+    pollTimer = setTimeout(() => poll(gen), delay);
+  }
+
+  async function poll(gen) {
+    if (gen !== generation || !jobId) return;
+    if (Date.now() - pollStarted > MAX_WAIT_MS) {
+      showError("This is taking much longer than expected. Please try again later.");
+      return;
+    }
+    let data;
+    try {
+      data = await api("GET", "/api/status/" + encodeURIComponent(jobId));
+    } catch (err) {
+      if (gen !== generation) return;
+      if (err.status === 404) {
+        showError("This job expired or the server restarted. Please try again.");
+        return;
+      }
+      if (err.network || (err.status && err.status >= 500)) {
+        pollFailures++;
+        if (pollFailures >= MAX_POLL_FAILURES) {
+          showError("Lost connection to the server. Please try again.");
+          return;
+        }
+        statusSub.hidden = false;
+        statusSub.textContent = "Connection problem — retrying…";
+        schedulePoll(gen, POLL_MS * Math.min(pollFailures + 1, 4));
+        return;
+      }
+      showError(err.message);
+      return;
+    }
+    if (gen !== generation) return;
+    pollFailures = 0;
+    handleStatus(data, gen);
+  }
+
+  function handleStatus(data, gen) {
+    switch (data.status) {
+      case "queued":
+        showStatus(STAGES.queued, null, null);
+        break;
+      case "processing": {
+        const stage = STAGES[data.stage] || "Processing…";
+        const pct = typeof data.progress === "number" ? data.progress : null;
+        const text = pct !== null ? stage.replace("…", "") + " " + Math.round(pct) + "%" : stage;
+        showStatus(text, typeof data.title === "string" ? data.title : null, pct);
+        break;
+      }
+      case "completed": {
+        if (typeof data.download_url !== "string" || !data.download_url.startsWith("/api/download/")) {
+          showError("The server returned an unexpected response.");
+          return;
+        }
+        stopPolling();
+        setBusy(false);
+        show(donePanel);
+        resultName.textContent = data.filename || "audio.mp3";
+        const size = formatBytes(data.filesize);
+        const mins = typeof data.expires_in === "number" ? Math.max(1, Math.round(data.expires_in / 60)) : null;
+        resultMeta.textContent = [size, mins ? "available for about " + mins + " min" : null].filter(Boolean).join(" · ");
+        fileLink.href = data.download_url;
+        fileLink.setAttribute("download", data.filename || "audio.mp3");
+        $("done-title").focus({ preventScroll: true });
+        return;
+      }
+      case "failed":
+        showError((data.error && data.error.message) || "Processing failed. Please try again.");
+        return;
+      default:
+        showError("The server returned an unexpected response.");
+        return;
+    }
+    schedulePoll(gen, POLL_MS);
+  }
+
+  // ---------- events ----------
+  form.addEventListener("submit", submit);
+
+  input.addEventListener("input", () => {
+    if (hint.classList.contains("error")) setHint(null, false);
+  });
+
+  pasteBtn.addEventListener("click", async () => {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      setHint("Clipboard access isn't available here — press Ctrl+V (⌘V on Mac) to paste.", false);
+      input.focus();
+      return;
+    }
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text) { setHint("Your clipboard is empty.", false); input.focus(); return; }
+      input.value = text.slice(0, 2048);
+      const check = validate(input.value);
+      setHint(check.ok ? null : check.msg, !check.ok);
+      (check.ok ? submitBtn : input).focus();
+    } catch {
+      setHint("Clipboard permission was denied — press Ctrl+V (⌘V on Mac) to paste.", false);
+      input.focus();
+    }
+  });
+
+  clearBtn.addEventListener("click", () => {
+    const active = busy && jobId;
+    if (active) api("DELETE", "/api/jobs/" + encodeURIComponent(jobId)).catch(() => {});
+    resetUI({ keepUrl: false });
+    input.focus();
+  });
+
+  $("again").addEventListener("click", () => { resetUI({ keepUrl: false }); input.focus(); });
+  $("retry").addEventListener("click", () => { resetUI({ keepUrl: true }); input.focus(); input.select(); });
+})();
+</script>
+</body>
+</html>

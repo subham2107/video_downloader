@@ -1,0 +1,27 @@
+# Render Blueprint: native Python web service (no Docker).
+# Deploy via Dashboard -> New -> Blueprint, and select this repository.
+services:
+  - type: web
+    name: youtube-mp3-downloader
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      # Free instances have 512 MB RAM and a fraction of a CPU: convert one video at a time.
+      - key: MAX_CONCURRENT_JOBS
+        value: "1"
+      - key: MAX_PENDING_JOBS
+        value: "5"
+      - key: MAX_VIDEO_DURATION
+        value: "1200"
+      - key: JOB_TIMEOUT
+        value: "900"
+      - key: JOB_RETENTION
+        value: "900"
+      - key: LOG_LEVEL
+        value: INFO
